@@ -1,9 +1,13 @@
+import jwt
 from django.db import models
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.utils.translation import gettext_lazy as _
 from django_rest_passwordreset.tokens import get_token_generator
+from datetime import datetime, timedelta
+
+from djangoProject import settings
 
 # Create your models here.
 
@@ -38,7 +42,7 @@ class UserManager(BaseUserManager):
         Create and save a user with the given username, email, and password.
         """
         if not email:
-            raise ValueError('The given email must be set')
+            raise ValueError('Указанный адрес электронной почты должен быть зарегистрирован')
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
@@ -77,18 +81,18 @@ class User(AbstractUser):
     username = models.CharField(
         _('username'),
         max_length=150,
-        help_text=_('Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.'),
+        help_text=_('Необходимый. 150 символов или меньше. Только буквы, цифры и @/./+/-/_.'),
         validators=[username_validator],
         error_messages={
-            'unique': _("A user with that username already exists."),
+            'unique': _("Пользователь с таким именем уже существует."),
         },
     )
     is_active = models.BooleanField(
         _('active'),
         default=False,
         help_text=_(
-            'Designates whether this user should be treated as active. '
-            'Unselect this instead of deleting accounts.'
+            'Указывает, следует ли считать этого пользователя активным. '
+            'Снимите этот флажок вместо удаления аккаунтов.'
         ),
     )
     type = models.CharField(verbose_name='Тип пользователя', choices=USER_TYPE_CHOICES, max_length=5, default='buyer')
@@ -96,10 +100,26 @@ class User(AbstractUser):
     def __str__(self):
         return f'{self.first_name} {self.last_name}'
 
+    @property
+    def token(self):
+        return self.generate_jwt_token()
+
     class Meta:
+
         verbose_name = 'Пользователь'
         verbose_name_plural = "Список пользователей"
         ordering = ('email',)
+
+    def generate_jwt_token(self):
+
+        dt = datetime.now() + timedelta(minutes=60)
+
+        token = jwt.encode(({
+            'id': self.pk,
+            'exp': int(dt.strftime('%s'))
+        }), settings.SECRET_KEY, algorithm='HS256')
+
+        return token.decode('utf-8')
 
 
 class Shop(models.Model):
@@ -111,8 +131,6 @@ class Shop(models.Model):
                                 on_delete=models.CASCADE)
     state = models.BooleanField(verbose_name='статус получения заказов', default=True)
 
-    # filename
-
     class Meta:
         verbose_name = 'Магазин'
         verbose_name_plural = "Список магазинов"
@@ -120,6 +138,7 @@ class Shop(models.Model):
 
     def __str__(self):
         return self.name
+
 
 
 class Category(models.Model):
@@ -256,6 +275,7 @@ class OrderItem(models.Model):
                                      blank=True,
                                      on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(verbose_name='Количество')
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     class Meta:
         verbose_name = 'Заказанная позиция'
@@ -264,16 +284,19 @@ class OrderItem(models.Model):
             models.UniqueConstraint(fields=['order_id', 'product_info'], name='unique_order_item'),
         ]
 
+    def __str__(self):
+        return f'{self.quantity} x {self.product_info.model} in {self.order.id}'
 
 class ConfirmEmailToken(models.Model):
     objects = models.manager.Manager()
+
     class Meta:
         verbose_name = 'Токен подтверждения Email'
         verbose_name_plural = 'Токены подтверждения Email'
 
     @staticmethod
     def generate_key():
-        """ generates a pseudo random code using os.urandom and binascii.hexlify """
+        """ генерирует псевдослучайный код, используя os.urandom и binascii.hexlify """
         return get_token_generator().generate_token()
 
     user = models.ForeignKey(

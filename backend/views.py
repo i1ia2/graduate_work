@@ -1,4 +1,7 @@
+import logging
 from distutils.util import strtobool
+
+from rest_framework import status
 from rest_framework.request import Request
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
@@ -14,31 +17,59 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from ujson import loads as load_json
 from yaml import load as load_yaml, Loader
+from django.shortcuts import render
+from django.urls import reverse_lazy
 
+from backend.forms import ShopForm, ProductSearchForm, CustomUserCreationForm
 from backend.models import Shop, Category, Product, ProductInfo, Parameter, ProductParameter, Order, OrderItem, \
-    Contact, ConfirmEmailToken
+    Contact, ConfirmEmailToken, User
 from backend.serializers import UserSerializer, CategorySerializer, ShopSerializer, ProductInfoSerializer, \
     OrderItemSerializer, OrderSerializer, ContactSerializer
 from backend.signals import new_user_registered, new_order
 
+def index(request):
+    if request.method == 'POST':
+        form = ShopForm(request.POST)
+        if form.is_valid():
+            shop = form.save(commit=False)
+    else:
+        form = ShopForm()
+
+    return render(request, 'index.html', {'form': form})
+
+def product_html(request):
+    form = ProductSearchForm(request.GET)
+    products = Product.objects.all()
+
+    if form.is_valid():
+        search_query = form.cleaned_data['search_query']
+        if search_query:
+            products = products.filter(nivel__icontains=search_query)
+    else:
+        products = ProductSearchForm()
+
+    return render(request, 'product_html.html', {'product': products, 'form': form})
+
+def shops_all(request):
+    shops = Shop.objects.all()
+    return render(request, 'shop.html', {'shops': shops})
+
+def shops_detail(request, shop_id):
+    shop = Shop.objects.get(id=shop_id)
+    products = ProductInfo.objects.filter(shop=shop)
+    return render(request, 'shop_products.html', {'shop': shop, 'products': products})
+
 
 class RegisterAccount(APIView):
-    """
-    Для регистрации покупателей
-    """
+
+    template_name = 'registration.html'
+    form_class = CustomUserCreationForm
+    success_url = reverse_lazy('product_html')
 
     # Регистрация методом POST
 
     def post(self, request, *args, **kwargs):
-        """
-            Process a POST request and create a new user.
 
-            Args:
-                request (Request): The Django request object.
-
-            Returns:
-                JsonResponse: The response indicating the status of the operation and any errors.
-            """
         # проверяем обязательные аргументы
         if {'first_name', 'last_name', 'email', 'password', 'company', 'position'}.issubset(request.data):
 
@@ -65,7 +96,9 @@ class RegisterAccount(APIView):
                 else:
                     return JsonResponse({'Status': False, 'Errors': user_serializer.errors})
 
-        return JsonResponse({'Status': False, 'Errors': 'Не указаны все необходимые аргументы'})
+        return JsonResponse({'Status': False, 'Errors': 'Не указаны все необходимые аргументы '
+                                                        'first_name, last_name, email, password, company, position'})
+
 
 
 class ConfirmAccount(APIView):
@@ -73,42 +106,42 @@ class ConfirmAccount(APIView):
     Класс для подтверждения почтового адреса
     """
 
-    # Регистрация методом POST
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
     def post(self, request, *args, **kwargs):
-        """
-                Подтверждает почтовый адрес пользователя.
 
-                Args:
-                - request (Request): The Django request object.
-
-                Returns:
-                - JsonResponse: The response indicating the status of the operation and any errors.
-                """
         # проверяем обязательные аргументы
-        if {'email', 'token'}.issubset(request.data):
+        if {'token', 'email'}.issubset(request.data):
+            email = request.data['email']
+            token_value = request.data['token']
 
-            token = ConfirmEmailToken.objects.filter(user__email=request.data['email'],
-                                                     key=request.data['token']).first()
+            # Ищем токен в базе данных
+            token = ConfirmEmailToken.objects.filter(user__email=email, key=token_value).first()
+
             if token:
+                # Подтверждаем аккаунт
                 token.user.is_active = True
                 token.user.save()
+
+                # Удаляем токен
                 token.delete()
-                return JsonResponse({'Status': True})
+
+                return JsonResponse({'Status': True, 'Message': 'Аккаунт успешно подтвержден.'})
             else:
-                return JsonResponse({'Status': False, 'Errors': 'Неправильно указан токен или email'})
-
-        return JsonResponse({'Status': False, 'Errors': 'Не указаны все необходимые аргументы'})
-
+                return JsonResponse({'Status': False, 'Errors': 'Неверный токен или адрес электронной почты.'})
+        else:
+            return JsonResponse({'Status': False, 'Errors': 'Укажите адрес электронной почты и токен.'})
 
 class AccountDetails(APIView):
     """
-    A class for managing user account details.
+    Класс для управления данными учетной записи пользователя.
 
-    Methods:
-    - get: Retrieve the details of the authenticated user.
-    - post: Update the account details of the authenticated user.
+    Методы:
+    - get: Получить данные о прошедшем проверку подлинности пользователе.
+    - post: Обновить данные учетной записи прошедшего проверку пользователя.
 
-    Attributes:
+    Атрибуты:
     - None
     """
 
@@ -172,17 +205,9 @@ class LoginAccount(APIView):
     Класс для авторизации пользователей
     """
 
-    # Авторизация методом POST
     def post(self, request, *args, **kwargs):
-        """
-                Authenticate a user.
 
-                Args:
-                    request (Request): The Django request object.
-
-                Returns:
-                    JsonResponse: The response indicating the status of the operation and any errors.
-                """
+        print("Request Data:", request.data)
         if {'email', 'password'}.issubset(request.data):
             user = authenticate(request, username=request.data['email'], password=request.data['password'])
 
@@ -195,6 +220,7 @@ class LoginAccount(APIView):
             return JsonResponse({'Status': False, 'Errors': 'Не удалось авторизовать'})
 
         return JsonResponse({'Status': False, 'Errors': 'Не указаны все необходимые аргументы'})
+
 
 
 class CategoryView(ListAPIView):
@@ -257,13 +283,13 @@ class ProductInfoView(APIView):
 
 class BasketView(APIView):
     """
-    A class for managing the user's shopping basket.
+    Класс для управления корзиной покупок пользователя.
 
-    Methods:
-    - get: Retrieve the items in the user's basket.
-    - post: Add an item to the user's basket.
-    - put: Update the quantity of an item in the user's basket.
-    - delete: Remove an item from the user's basket.
+    Методы:
+    - get: получить товары из корзины пользователя.
+    - post: добавить товар в корзину пользователя.
+    - put: обновить количество товара в корзине пользователя.
+    - delete: удалить товар из корзины пользователя.
 
     Attributes:
     - None
@@ -272,21 +298,27 @@ class BasketView(APIView):
     # получить корзину
     def get(self, request, *args, **kwargs):
         """
-                Retrieve the items in the user's basket.
 
-                Args:
-                - request (Request): The Django request object.
+                Извлеките элементы из корзины пользователя.
 
-                Returns:
-                - Response: The response containing the items in the user's basket.
+                Аргументы:
+                - request (Запрос): Объект запроса Django.
+
+                Возвращается:
+                - Response: Ответ, содержащий товары из корзины пользователя.
                 """
-        if not request.user.is_authenticated:
-            return JsonResponse({'Status': False, 'Error': 'Log in required'}, status=403)
+
+        # if not request.user.is_authenticated:
+        #     return JsonResponse({'Status': False, 'Error': 'Не удалось авторизоваться'}, status=403)
+
         basket = Order.objects.filter(
             user_id=request.user.id, state='basket').prefetch_related(
             'ordered_items__product_info__product__category',
             'ordered_items__product_info__product_parameters__parameter').annotate(
             total_sum=Sum(F('ordered_items__quantity') * F('ordered_items__product_info__price'))).distinct()
+
+        if not basket.exists():
+            return JsonResponse({'Status': False, 'Error': 'Корзина пуста. Товар еще не добавлен.'})
 
         serializer = OrderSerializer(basket, many=True)
         return Response(serializer.data)
@@ -294,21 +326,23 @@ class BasketView(APIView):
     # редактировать корзину
     def post(self, request, *args, **kwargs):
         """
-               Add an items to the user's basket.
+            Добавьте товары в корзину пользователя.
 
-               Args:
-               - request (Request): The Django request object.
+            Аргументы:
+            - request (Запрос): Объект запроса Django.
 
-               Returns:
-               - JsonResponse: The response indicating the status of the operation and any errors.
+            Возвращается:
+            - JsonResponse: ответ, указывающий статус операции и любые ошибки.
                """
         if not request.user.is_authenticated:
-            return JsonResponse({'Status': False, 'Error': 'Log in required'}, status=403)
+            return JsonResponse({'Status': False, 'Error': 'Не удалось авторизоваться'}, status=403)
 
         items_sting = request.data.get('items')
         if items_sting:
             try:
-                items_dict = load_json(items_sting)
+                # print(items_sting)
+                # items_dict = load_json(items_sting)
+                items_dict = items_sting
             except ValueError:
                 return JsonResponse({'Status': False, 'Errors': 'Неверный формат запроса'})
             else:
@@ -329,22 +363,17 @@ class BasketView(APIView):
 
                         return JsonResponse({'Status': False, 'Errors': serializer.errors})
 
-                return JsonResponse({'Status': True, 'Создано объектов': objects_created})
+            return JsonResponse({'Status': True, 'Создано объектов': objects_created})
         return JsonResponse({'Status': False, 'Errors': 'Не указаны все необходимые аргументы'})
 
     # удалить товары из корзины
     def delete(self, request, *args, **kwargs):
         """
-                Remove  items from the user's basket.
+                Удалять товары из корзины пользователя.
 
-                Args:
-                - request (Request): The Django request object.
-
-                Returns:
-                - JsonResponse: The response indicating the status of the operation and any errors.
-                """
+         """
         if not request.user.is_authenticated:
-            return JsonResponse({'Status': False, 'Error': 'Log in required'}, status=403)
+            return JsonResponse({'Status': False, 'Error': 'Не удалось авторизоваться'}, status=403)
 
         items_sting = request.data.get('items')
         if items_sting:
@@ -365,16 +394,16 @@ class BasketView(APIView):
     # добавить позиции в корзину
     def put(self, request, *args, **kwargs):
         """
-               Update the items in the user's basket.
+                Обновите элементы в корзине пользователя.
 
-               Args:
-               - request (Request): The Django request object.
+                Аргументы:
+                - запрос (Request): Объект запроса Django.
 
-               Returns:
-               - JsonResponse: The response indicating the status of the operation and any errors.
+                Возвращается:
+                - JsonResponse: ответ, указывающий статус операции и любые ошибк
                """
         if not request.user.is_authenticated:
-            return JsonResponse({'Status': False, 'Error': 'Log in required'}, status=403)
+            return JsonResponse({'Status': False, 'Error': 'Не авторизован'}, status=403)
 
         items_sting = request.data.get('items')
         if items_sting:
@@ -396,24 +425,19 @@ class BasketView(APIView):
 
 class PartnerUpdate(APIView):
     """
-    A class for updating partner information.
+    Класс для обновления информации о партнере.
 
-    Methods:
-    - post: Update the partner information.
-
-    Attributes:
-    - None
     """
 
     def post(self, request, *args, **kwargs):
         """
-                Update the partner price list information.
+                Обновите информацию о прайс-листе партнера.
 
-                Args:
-                - request (Request): The Django request object.
+                Аргументы:
+                - запрос (Request): Объект запроса Django.
 
-                Returns:
-                - JsonResponse: The response indicating the status of the operation and any errors.
+                Возвращается:
+                - JsonResponse: ответ, указывающий статус операции и любые ошибки.
                 """
         if not request.user.is_authenticated:
             return JsonResponse({'Status': False, 'Error': 'Log in required'}, status=403)
@@ -462,24 +486,24 @@ class PartnerUpdate(APIView):
 
 class PartnerState(APIView):
     """
-       A class for managing partner state.
+        Класс для управления государством-партнером.
 
-       Methods:
-       - get: Retrieve the state of the partner.
+        Методы:
+        - получить: Получить состояние партнера.
 
-       Attributes:
+        Атрибуты:
        - None
        """
     # получить текущий статус
     def get(self, request, *args, **kwargs):
         """
-               Retrieve the state of the partner.
+                Извлеките состояние партнера.
 
-               Args:
-               - request (Request): The Django request object.
+                Аргументы:
+                - запрос (Request): Объект запроса Django.
 
-               Returns:
-               - Response: The response containing the state of the partner.
+                Возвращается:
+                - Ответ: Ответ, содержащий состояние партнера.
                """
         if not request.user.is_authenticated:
             return JsonResponse({'Status': False, 'Error': 'Log in required'}, status=403)
@@ -494,13 +518,13 @@ class PartnerState(APIView):
     # изменить текущий статус
     def post(self, request, *args, **kwargs):
         """
-               Update the state of a partner.
+               Обновите состояние партнера.
 
-               Args:
-               - request (Request): The Django request object.
+                Аргументы:
+                - запрос (Request): Объект запроса Django.
 
-               Returns:
-               - JsonResponse: The response indicating the status of the operation and any errors.
+                Возвращается:
+                - JsonResponse: ответ, указывающий статус операции и любые ошибки.
                """
         if not request.user.is_authenticated:
             return JsonResponse({'Status': False, 'Error': 'Log in required'}, status=403)
@@ -522,7 +546,7 @@ class PartnerOrders(APIView):
     """
     Класс для получения заказов поставщиками
      Methods:
-    - get: Retrieve the orders associated with the authenticated partner.
+    - get: Извлеките заказы, связанные с аутентифицированным партнером.
 
     Attributes:
     - None
@@ -530,16 +554,16 @@ class PartnerOrders(APIView):
 
     def get(self, request, *args, **kwargs):
         """
-               Retrieve the orders associated with the authenticated partner.
+              Извлеките заказы, связанные с аутентифицированным партнером.
 
-               Args:
-               - request (Request): The Django request object.
+                Аргументы:
+                - запрос (Request): Объект запроса Django.
 
-               Returns:
-               - Response: The response containing the orders associated with the partner.
+                Возвращается:
+                - Ответ: Ответ, содержащий заказы, связанные с партнером.
                """
         if not request.user.is_authenticated:
-            return JsonResponse({'Status': False, 'Error': 'Log in required'}, status=403)
+            return JsonResponse({'Status': False, 'Error': 'Требуется вход в систему'}, status=403)
 
         if request.user.type != 'shop':
             return JsonResponse({'Status': False, 'Error': 'Только для магазинов'}, status=403)
@@ -556,28 +580,28 @@ class PartnerOrders(APIView):
 
 class ContactView(APIView):
     """
-       A class for managing contact information.
+        Класс для управления контактной информацией.
 
-       Methods:
-       - get: Retrieve the contact information of the authenticated user.
-       - post: Create a new contact for the authenticated user.
-       - put: Update the contact information of the authenticated user.
-       - delete: Delete the contact of the authenticated user.
+        Методы:
+        - get: Извлекает контактную информацию прошедшего проверку пользователя.
+        - post: Создает новый контакт для прошедшего проверку пользователя.
+        - put: Обновляет контактную информацию прошедшего проверку пользователя.
+        - удалить: Удалите контакт аутентифицированного пользователя.
 
-       Attributes:
+        Атрибуты:
        - None
        """
 
     # получить мои контакты
     def get(self, request, *args, **kwargs):
         """
-               Retrieve the contact information of the authenticated user.
+                Извлеките контактную информацию аутентифицированного пользователя.
 
-               Args:
-               - request (Request): The Django request object.
+                Аргументы:
+                - запрос (Request): Объект запроса Django.
 
-               Returns:
-               - Response: The response containing the contact information.
+                Возвращается:
+                - Ответ: Ответ, содержащий контактную информацию.
                """
         if not request.user.is_authenticated:
             return JsonResponse({'Status': False, 'Error': 'Log in required'}, status=403)
@@ -589,13 +613,13 @@ class ContactView(APIView):
     # добавить новый контакт
     def post(self, request, *args, **kwargs):
         """
-               Create a new contact for the authenticated user.
+               Создайте новый контакт для аутентифицированного пользователя.
 
-               Args:
-               - request (Request): The Django request object.
+                Аргументы:
+                - request (Запрос): Объект запроса Django.
 
-               Returns:
-               - JsonResponse: The response indicating the status of the operation and any errors.
+                Возвращается:
+                - JsonResponse: ответ, указывающий статус операции и любые ошибки.
                """
         if not request.user.is_authenticated:
             return JsonResponse({'Status': False, 'Error': 'Log in required'}, status=403)
@@ -611,18 +635,19 @@ class ContactView(APIView):
             else:
                 return JsonResponse({'Status': False, 'Errors': serializer.errors})
 
-        return JsonResponse({'Status': False, 'Errors': 'Не указаны все необходимые аргументы'})
+        return JsonResponse({'Status': False, 'Errors': 'Не указаны все необходимые аргументы city, street, phone'},
+                            status=403)
 
     # удалить контакт
     def delete(self, request, *args, **kwargs):
         """
-               Delete the contact of the authenticated user.
+                Удалите контакт аутентифицированного пользователя.
 
-               Args:
-               - request (Request): The Django request object.
+                Аргументы:
+                - запрос (Request): Объект запроса Django.
 
-               Returns:
-               - JsonResponse: The response indicating the status of the operation and any errors.
+                Возвращается:
+                - JsonResponse: ответ, указывающий статус операции и любые ошибки.
                """
         if not request.user.is_authenticated:
             return JsonResponse({'Status': False, 'Error': 'Log in required'}, status=403)
@@ -646,13 +671,13 @@ class ContactView(APIView):
     def put(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             """
-                   Update the contact information of the authenticated user.
+                    Обновите контактную информацию аутентифицированного пользователя.
 
-                   Args:
-                   - request (Request): The Django request object.
+                    Аргументы:
+                    - запрос (Request): Объект запроса Django.
 
-                   Returns:
-                   - JsonResponse: The response indicating the status of the operation and any errors.
+                    Возвращается:
+                    - JsonResponse: ответ, указывающий статус операции и любые ошибки.
                    """
             return JsonResponse({'Status': False, 'Error': 'Log in required'}, status=403)
 
@@ -672,29 +697,10 @@ class ContactView(APIView):
 
 
 class OrderView(APIView):
-    """
-    Класс для получения и размешения заказов пользователями
-    Methods:
-    - get: Retrieve the details of a specific order.
-    - post: Create a new order.
-    - put: Update the details of a specific order.
-    - delete: Delete a specific order.
-
-    Attributes:
-    - None
-    """
 
     # получить мои заказы
     def get(self, request, *args, **kwargs):
-        """
-               Retrieve the details of user orders.
 
-               Args:
-               - request (Request): The Django request object.
-
-               Returns:
-               - Response: The response containing the details of the order.
-               """
         if not request.user.is_authenticated:
             return JsonResponse({'Status': False, 'Error': 'Log in required'}, status=403)
         order = Order.objects.filter(
@@ -704,21 +710,14 @@ class OrderView(APIView):
             total_sum=Sum(F('ordered_items__quantity') * F('ordered_items__product_info__price'))).distinct()
 
         serializer = OrderSerializer(order, many=True)
-        return Response(serializer.data)
+        serializer_data = OrderSerializer.data
+        return JsonResponse({'Status': True, 'order': serializer_data})
 
     # разместить заказ из корзины
     def post(self, request, *args, **kwargs):
-        """
-               Put an order and send a notification.
 
-               Args:
-               - request (Request): The Django request object.
-
-               Returns:
-               - JsonResponse: The response indicating the status of the operation and any errors.
-               """
         if not request.user.is_authenticated:
-            return JsonResponse({'Status': False, 'Error': 'Log in required'}, status=403)
+            return JsonResponse({'Status': False, 'Error': 'Требуется вход в систему'}, status=403)
 
         if {'id', 'contact'}.issubset(request.data):
             if request.data['id'].isdigit():
@@ -736,3 +735,18 @@ class OrderView(APIView):
                         return JsonResponse({'Status': True})
 
         return JsonResponse({'Status': False, 'Errors': 'Не указаны все необходимые аргументы'})
+
+class RestrictedView(APIView):
+    def get(self, request, *args, **kwargs):
+        return JsonResponse({'message': 'This is a restricted view'}, status=status.HTTP_200_OK)
+
+class check_user_restricted(APIView):
+    def get(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return JsonResponse({'Status': True, 'Message': 'Пользователь зарегистрирован'},
+                                status=status.HTTP_200_OK)
+
+        else:
+            print(request.user.id)
+            return JsonResponse({'Status': False, 'Message': 'Пользователь не зарегестрирован'},
+                                status=status.HTTP_401_UNAUTHORIZED)

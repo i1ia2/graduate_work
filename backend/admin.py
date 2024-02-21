@@ -5,6 +5,7 @@ from backend.models import User, Shop, Category, Product, ProductInfo, Parameter
     Contact, ConfirmEmailToken
 
 
+
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
     """
@@ -71,3 +72,14 @@ class ContactAdmin(admin.ModelAdmin):
 @admin.register(ConfirmEmailToken)
 class ConfirmEmailTokenAdmin(admin.ModelAdmin):
     list_display = ('user', 'key', 'created_at',)
+
+# class YourModelAdmin(admin.ModelAdmin):
+#     actions = ['run_do_import']
+#
+#     def run_do_import(self, request, queryset):
+#         for obj in queryset:
+#             do_import.apply_async(args=[obj.id])
+#
+#     run_do_import.short_description = 'Run the imported Task'
+#
+# admin.site.register(YourModelAdmin)
