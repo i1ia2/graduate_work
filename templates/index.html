@@ -1,0 +1,42 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<style>
+    body{
+        background-image: url("static/img/large_XXL.jpg");
+         background-size: cover;
+    }
+</style>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DjangoDNC</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'static.css' %}" > 
+</head>
+<body >
+    
+<h1 class="my-custom-class">Магазин DNC</h1>
+ 
+<form method="post" action="">
+        {% csrf_token %}
+        {{ form }}
+        <button type="submit">Выбрать магазин</button>
+    </form>
+
+    {% if shop %}
+        <p>Выбранный магазин: {{ selected_store.name }}</p>
+        
+    {% endif %}
+
+<a href="{% url 'shops_all' %}"> 
+    <button class="another-class">Cписок магазинов </button>
+</a>
+
+<a href="{% url 'product_html' %}">
+    <button class="another-class">Каталог техники</button>
+</a>
+
+</body>
+</html>
+

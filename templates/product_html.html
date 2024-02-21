@@ -1,0 +1,48 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<style>
+    body{
+        background-image: url("{% static 'img/2.jpg' %}");
+        background-size: cover;
+    }
+</style>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Catalog</title>
+</head>
+<body>
+    <h1>Каталог товаров</h1>
+    
+    <form method="get" action="{% url 'product' %}">
+        {{ form.search_query }}
+        <button type="submit">Search</button>
+    </form>
+    
+    <h2 class="my-custom-class">Результат поска</h2>
+    <ul>
+        {% for products in product %}
+            <li>{{ products.name }}</li>
+        {% endfor %}
+    </ul>
+    
+    {% if products %}
+        <ul>
+            {% for product in products %}
+                <li>
+                    <strong class="another-class">{{ product.name }}</strong><br>
+                    Цена: {{ product.price }}<br>
+                    Категория: {{ product.category }}
+                    <!-- Другие поля продукта, если они есть -->
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No products available.</p>
+    {% endif %}
+</body>
+</html>
+</body>
+</html>

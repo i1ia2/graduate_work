@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="x-ua-compatible">
+    <meta name="viewoport" content="widtn=device-width, initial-scale=1.0">
+    
+    <title>Добавление Товаров в корзину</title>
+</head>
+
+<body>
+
+   <h1>Добавление товара в корзину</h1>
+
+   <form id="basketForm">
+       <label for="item_id">ID товара:</label>
+       <input type="text" id="item_id" name="item_id" required>
+       
+       <label for="quantity"> Количество</label>
+       <input type="text" id="quantity" name="quantity" required>
+       
+       <button type="button" onclick="addToBasket()">добавить в корзину</button>
+   </form>
+
+    <script>
+        function addToBasket() {
+            var item_id = document.getElementById('item_id').value;
+            var quantity = document.getElementById('quantity').value;
+            
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', 'basket', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function (){
+                if (xhr.readyState === 4 && xhr.status === 200){
+                    var respons = JSON.parse(xhr.responseText);
+                    alert(response.Message);
+                }
+            };
+            var data = JSON.stringify({'item_id': item_id, 'quantity': quantity});
+            xhr.send(data);
+        }
+    </script>
+
+</body>
+</html>
