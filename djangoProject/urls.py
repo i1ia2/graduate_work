@@ -33,5 +33,6 @@ urlpatterns = [
     path('basket', BasketView.as_view(), name='basket'),
     path('order', OrderView.as_view(), name='order'),
     path('shops/all/<int:shop_id>', ShopView.as_view(), name='shop_products'),
-    path('user/examination', check_user_restricted.as_view(), name='user-examination')
+    path('user/examination', check_user_restricted.as_view(), name='user-examination'),
+    # path('', include('social_django.urls', namespace='social')),
 ]

@@ -1,7 +1,7 @@
 import logging
 from distutils.util import strtobool
 
-from rest_framework import status
+from django.contrib.auth.models import User
 from rest_framework.request import Request
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
@@ -19,6 +19,11 @@ from ujson import loads as load_json
 from yaml import load as load_yaml, Loader
 from django.shortcuts import render
 from django.urls import reverse_lazy
+
+from django.test import TestCase
+from django.urls import reverse
+from rest_framework.test import APIClient
+from rest_framework import status
 
 from backend.forms import ShopForm, ProductSearchForm, CustomUserCreationForm
 from backend.models import Shop, Category, Product, ProductInfo, Parameter, ProductParameter, Order, OrderItem, \
@@ -53,6 +58,7 @@ def product_html(request):
 def shops_all(request):
     shops = Shop.objects.all()
     return render(request, 'shop.html', {'shops': shops})
+
 
 def shops_detail(request, shop_id):
     shop = Shop.objects.get(id=shop_id)
@@ -100,7 +106,6 @@ class RegisterAccount(APIView):
                                                         'first_name, last_name, email, password, company, position'})
 
 
-
 class ConfirmAccount(APIView):
     """
     Класс для подтверждения почтового адреса
@@ -132,6 +137,7 @@ class ConfirmAccount(APIView):
                 return JsonResponse({'Status': False, 'Errors': 'Неверный токен или адрес электронной почты.'})
         else:
             return JsonResponse({'Status': False, 'Errors': 'Укажите адрес электронной почты и токен.'})
+
 
 class AccountDetails(APIView):
     """
