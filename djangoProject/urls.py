@@ -1,6 +1,8 @@
 
 from django.contrib import admin
 from django.urls import path, include
+from drf_spectacular.views import SpectacularSwaggerView, SpectacularAPIView
+
 from backend import views
 
 from django_rest_passwordreset.views import reset_password_request_token, reset_password_confirm
@@ -34,5 +36,7 @@ urlpatterns = [
     path('order', OrderView.as_view(), name='order'),
     path('shops/all/<int:shop_id>', ShopView.as_view(), name='shop_products'),
     path('user/examination', check_user_restricted.as_view(), name='user-examination'),
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger'),
     # path('', include('social_django.urls', namespace='social')),
 ]
