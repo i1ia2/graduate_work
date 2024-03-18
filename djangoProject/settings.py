@@ -42,9 +42,13 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'django_rest_passwordreset',
+<<<<<<< HEAD
     'drf_spectacular',
     'drf_spectacular_sidecar',
     # 'social_django',
+=======
+    'social_django',
+>>>>>>> 1e537ad4e7ed75f85ac8479a428853fc8e49be91
 ]
 
 MIDDLEWARE = [
