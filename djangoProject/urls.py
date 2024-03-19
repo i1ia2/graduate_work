@@ -36,10 +36,7 @@ urlpatterns = [
     path('order', OrderView.as_view(), name='order'),
     path('shops/all/<int:shop_id>', ShopView.as_view(), name='shop_products'),
     path('user/examination', check_user_restricted.as_view(), name='user-examination'),
-<<<<<<< HEAD
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger'),
-=======
->>>>>>> 1e537ad4e7ed75f85ac8479a428853fc8e49be91
-    # path('', include('social_django.urls', namespace='social')),
+    path('social-auth/', include('social_django.urls', namespace='social')),
 ]

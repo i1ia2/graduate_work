@@ -1,7 +1,7 @@
 import logging
 from distutils.util import strtobool
+from random import random, randint
 
-from django.contrib.auth.models import User
 from rest_framework.request import Request
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
@@ -17,13 +17,15 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from ujson import loads as load_json
 from yaml import load as load_yaml, Loader
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
+from django.contrib.auth import authenticate, login
+from rest_framework.throttling import UserRateThrottle
 
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
-from rest_framework import status
+from rest_framework import status, throttling
 
 from backend.forms import ShopForm, ProductSearchForm, CustomUserCreationForm
 from backend.models import Shop, Category, Product, ProductInfo, Parameter, ProductParameter, Order, OrderItem, \
@@ -65,6 +67,20 @@ def shops_detail(request, shop_id):
     products = ProductInfo.objects.filter(shop=shop)
     return render(request, 'shop_products.html', {'shop': shop, 'products': products})
 
+
+class ExampleView(APIView):
+    throttle_classes = [UserRateThrottle]
+
+    def get(self, request, format=None):
+        content = {
+            'status': 'request was permitted'
+        }
+        return Response(content)
+
+
+class RandomRateThrottle(throttling.BaseThrottle):
+    def allow_request(self, request, view):
+        return random.randint(1, 10) != 1
 
 class RegisterAccount(APIView):
 
