@@ -11,12 +11,14 @@ from backend.views import (ShopView, OrderView, BasketView, ContactView, Registe
                            PartnerState, PartnerOrders, LoginAccount, CategoryView, ConfirmAccount, AccountDetails,
                            ProductInfoView, shops_all, product_html,check_user_restricted)
 
-
+def trigger_error(request):
+    division_by_zero = 1 / 0
 
 
 urlpatterns = [
     path('', views.index, name='index'),
     path('admin/', admin.site.urls, name='admin'),
+    path('baton/', include('baton.urls')),
     path('product/info', ProductInfoView.as_view(), name='product'),
     path('product', product_html, name='product_html'),
     path('partner/update', PartnerUpdate.as_view(), name='partner-update'),
@@ -39,4 +41,5 @@ urlpatterns = [
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger'),
     path('social-auth/', include('social_django.urls', namespace='social')),
+    path('sentry-debug/', trigger_error)
 ]

@@ -26,9 +26,8 @@
 
     {% if shop %}
         <p>Выбранный магазин: {{ selected_store.name }}</p>
-        
     {% endif %}
-
+<a href="{% url 'social:begin' 'google-oauth2' %}">Войти через Google</a>
 <a href="{% url 'shops_all' %}"> 
     <button class="another-class">Cписок магазинов </button>
 </a>

@@ -73,13 +73,13 @@ class ContactAdmin(admin.ModelAdmin):
 class ConfirmEmailTokenAdmin(admin.ModelAdmin):
     list_display = ('user', 'key', 'created_at',)
 
-# class YourModelAdmin(admin.ModelAdmin):
-#     actions = ['run_do_import']
-#
-#     def run_do_import(self, request, queryset):
-#         for obj in queryset:
-#             do_import.apply_async(args=[obj.id])
-#
-#     run_do_import.short_description = 'Run the imported Task'
-#
+class YourModelAdmin(admin.ModelAdmin):
+    actions = ['run_do_import']
+
+    def run_do_import(self, request, queryset, do_import=False):
+        for obj in queryset:
+            do_import.apply_async(args=[obj.id])
+
+    run_do_import.short_description = 'Run the imported Task'
+
 # admin.site.register(YourModelAdmin)

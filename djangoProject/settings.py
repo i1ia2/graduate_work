@@ -12,9 +12,13 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 
 from pathlib import Path
 import os
+import sentry_sdk
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
 
 
 # Quick-start development settings - unsuitable for production
@@ -28,10 +32,20 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+sentry_sdk.init(
+    dsn="https://831dc8e90a854f39f2c884669583a701@o4506971122237440.ingest.us.sentry.io/4506971125972992",
+    enable_tracing=True,
+    integrations=[DjangoIntegration()],
+    traces_sample_rate=1.0,
+    send_default_pii=True,
+
+)
 
 # Application definition
 
 INSTALLED_APPS = [
+    'baton',
+    # 'baton.autodiscover',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -45,6 +59,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'drf_spectacular_sidecar',
     'social_django',
+    'sentry_sdk',
     # 'social_django_mongoengine',
 ]
 
@@ -55,7 +70,6 @@ AUTHENTICATION_BACKENDS = (
     'social_core.backends.google.GoogleOAuth2',
     'social_core.backends.github.GithubOAuth2',
     'social_core.backends.google.GoogleOAuth',
-    'social_core.backends.yandex'
     'django.contrib.auth.backends.ModelBackend',
 )
 
