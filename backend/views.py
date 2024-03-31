@@ -1,9 +1,9 @@
 import logging
 from distutils.util import strtobool
 from random import random, randint
+from tasks import resize_image
 
 from rest_framework.request import Request
-from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
@@ -21,10 +21,6 @@ from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
 from django.contrib.auth import authenticate, login
 from rest_framework.throttling import UserRateThrottle
-
-from django.test import TestCase
-from django.urls import reverse
-from rest_framework.test import APIClient
 from rest_framework import status, throttling
 
 from backend.forms import ShopForm, ProductSearchForm, CustomUserCreationForm
@@ -66,6 +62,21 @@ def shops_detail(request, shop_id):
     shop = Shop.objects.get(id=shop_id)
     products = ProductInfo.objects.filter(shop=shop)
     return render(request, 'shop_products.html', {'shop': shop, 'products': products})
+
+
+def upload_image(request):
+    if request.method == 'POST' and request.FILES['image']:
+        image = request.FILES['image']
+        # Сохраняем изображение на сервере
+        image_path = 'C:/Users/Илюха/PycharmProjects/graduate_work/djangoProject/image/Image/' + image.name
+        with open(image_path, 'wb+') as destination:
+            for chunk in image.chunks():
+                destination.write(chunk)
+        # Запускаем задачу Celery для обработки изображения
+        thumbnail_path = 'C:/Users/Илюха/PycharmProjects/graduate_work/djangoProject/image/Image_mine/' + image.name
+        resize_image(image_path, thumbnail_path)
+        return render(request, 'success.html')
+    return render(request, 'upload.html')
 
 
 class ExampleView(APIView):

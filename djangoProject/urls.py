@@ -9,7 +9,7 @@ from django_rest_passwordreset.views import reset_password_request_token, reset_
 
 from backend.views import (ShopView, OrderView, BasketView, ContactView, RegisterAccount, PartnerUpdate,
                            PartnerState, PartnerOrders, LoginAccount, CategoryView, ConfirmAccount, AccountDetails,
-                           ProductInfoView, shops_all, product_html,check_user_restricted)
+                           ProductInfoView, shops_all, product_html,check_user_restricted, upload_image)
 
 def trigger_error(request):
     division_by_zero = 1 / 0
@@ -41,5 +41,7 @@ urlpatterns = [
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger'),
     path('social-auth/', include('social_django.urls', namespace='social')),
-    path('sentry-debug/', trigger_error)
+    path('sentry-debug/', trigger_error),
+    path('upload/', upload_image, name='upload_image'),
 ]
+

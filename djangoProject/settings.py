@@ -60,6 +60,10 @@ INSTALLED_APPS = [
     'drf_spectacular_sidecar',
     'social_django',
     'sentry_sdk',
+    'easy_thumbnails',
+    'imagekit',
+
+
     # 'social_django_mongoengine',
 ]
 
@@ -224,11 +228,18 @@ SPECTACULAR_SETTINGS = {
     'REDOC_DIST': 'SIDECAR',
     # OTHER SETTINGS
 }
+#Закоментил что бы можно было загрузить в гит хаб
+# SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = 'ключ'
+# SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = 'секрет'
 
+SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
+    'profile',
+    'email',
+]
 
+SOCIAL_AUTH_ADMIN_USER_SEARCH_FIELDS = ['email']
 
-
-
+SOCIAL_AUTH_JSONFIELD_ENABLED = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CELERY_BROKER_URL = 'redis://localhost:6379/0'

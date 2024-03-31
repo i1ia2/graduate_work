@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<ul>
+    {% for product in products %}
+        <li>{{ product.name }}:{{ product.quantity }}</li>
+    {% endfor %}
+</ul>
+
+<body>
+    <form method="get" action="{% url 'shop_products' shop_id %}"> 
+        {{ form }}
+        <button type="submit">Искать в магазине</button>
+    </form>
+
+</body>
+</html>

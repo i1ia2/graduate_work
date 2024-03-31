@@ -1,0 +1,41 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<style>
+    body{
+        background-image: url("{% static 'img/2.jpg' %}");
+        background-size: cover;
+    }
+</style>
+<a href="{% url 'social:begin' 'google-oauth2' %}">Войти через Google</a>
+<head>
+   <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DjangoDNC</title>
+    <title>Выбор магазина</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'static.css' %}" > 
+</head>
+<body>
+    <h1 class="my-custom-class">Выберите магазин</h1>
+
+    <form method="get" action="{% url 'shops_all' %}">
+        {% csrf_token %}
+        
+        <label for="store", class="another-class">Магазин:</label>
+        <select name="store" id="store">
+            {% for store in shops %}
+                <option value="{{ store.id }}">{{ store.name }}</option>
+            {% endfor %}
+        </select>
+    
+        <button type="submit">Выбрать</button>
+    </form>
+<h1 class="my-custom-class">Список всех магазинов</h1>
+  <ul>
+      {% for shop in shops %}
+          <li class="another-class">{{ shop.name }}</li>
+      {% endfor %}
+  </ul>
+</body>
+</html>
